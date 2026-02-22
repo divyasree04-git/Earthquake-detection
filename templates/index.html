@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Earthquake Detection System</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: url("/static/earthquake-bg.jpg") no-repeat center center/cover;
+      color: white;
+      text-align: center;
+    }
+    .overlay {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 15px;
+      display: inline-block;
+      margin-top: 30px;
+    }
+    #map {
+      height: 500px;
+      width: 90%;
+      margin: 20px auto;
+      border: 2px solid white;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay">
+    <h1>🌍 Earthquake Detection System</h1>
+    <p id="status">Click on the map to check for recent earthquakes near that location.</p>
+  </div>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Initialize map
+    var map = L.map('map').setView([20, 80], 3);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // Click event to check earthquakes
+    map.on('click', async function(e) {
+      let lat = e.latlng.lat;
+      let lon = e.latlng.lng;
+
+      document.getElementById("status").innerText =
+        "Checking earthquakes near (" + lat.toFixed(2) + ", " + lon.toFixed(2) + ") ...";
+
+      let response = await fetch("/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: lat, lon: lon })
+      });
+
+      let data = await response.json();
+
+      if (data.alerts.length > 0) {
+        let msg = "⚠️ Nearby Earthquakes Detected:\n";
+        data.alerts.forEach(eq => {
+          msg += `📍 ${eq.place} | Magnitude: ${eq.magnitude} | ${eq.distance_km} km away\n`;
+          L.marker([lat, lon]).addTo(map)
+            .bindPopup(`<b>${eq.place}</b><br>Magnitude: ${eq.magnitude}<br>Distance: ${eq.distance_km} km`)
+            .openPopup();
+        });
+        document.getElementById("status").innerText = msg;
+      } else {
+        document.getElementById("status").innerText =
+          "✅ No recent significant earthquakes near this location.";
+      }
+    });
+  </script>
+</body>
+</html>
